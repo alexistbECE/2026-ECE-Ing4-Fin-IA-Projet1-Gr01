@@ -117,6 +117,17 @@ def merge_data(prices: pd.DataFrame, technicals: pd.DataFrame, macro: pd.DataFra
         if 'treasury_10y' in macro_wide.columns and 'treasury_2y' in macro_wide.columns:
             macro_wide['term_spread'] = macro_wide['treasury_10y'] - macro_wide['treasury_2y']
             
+        # SOLUTION 3: Regime Stance Features
+        # Calculate 3-month (approx 63 trading days) trends for Inflation and Rates
+        if 'cpi' in macro_wide.columns:
+            macro_wide['cpi_trend_3m'] = macro_wide['cpi'].pct_change(63)
+        if 'fed_rate' in macro_wide.columns:
+            macro_wide['rate_trend_3m'] = macro_wide['fed_rate'].diff(63)
+            
+        # Composite Stance: Inflation up + Rates up = Hawkish Regime (Risk Off?)
+        if 'cpi_trend_3m' in macro_wide.columns and 'rate_trend_3m' in macro_wide.columns:
+            macro_wide['hawkish_stance'] = ((macro_wide['cpi_trend_3m'] > 0) & (macro_wide['rate_trend_3m'] > 0)).astype(int)
+            
         # Reset index to make 'date' a column again for merge
         macro_wide = macro_wide.reset_index()
         

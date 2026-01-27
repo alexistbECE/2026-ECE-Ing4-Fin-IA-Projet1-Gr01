@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 import matplotlib.pyplot as plt
 import xgboost as xgb
+from sklearn.metrics import roc_auc_score, accuracy_score
 
 # Add src to path
 sys.path.append(str(Path(__file__).parent))
@@ -90,6 +91,12 @@ def run_xgboost_analysis():
     full_df = pp.merge_data(prices, technicals, macro, fundamentals)
     labeled_df = pp.create_target(full_df, horizon=20)
     
+    # SOLUTION 1: Filter by date to capture recent regime
+    MIN_TRAIN_DATE = "2022-01-01"
+    if MIN_TRAIN_DATE:
+        print(f"📅 Filtering data: Only keeping rows from {MIN_TRAIN_DATE} onwards...")
+        labeled_df = labeled_df[labeled_df['date'] >= MIN_TRAIN_DATE]
+    
     # Filter features
     drop_cols = ['id', 'symbol', 'ticker', 'date', 'trade_date', 'fetched_at', 
                  'close_future', 'fwd_return', 'target', 'created_at', 'updated_at',
@@ -132,8 +139,30 @@ def run_xgboost_analysis():
     model.train(X_train, y_train, X_val, y_val, sample_weight=w_train)
     
     print("📊 Evaluating...")
-    metrics = model.evaluate(X_test, y_test)
-    print(f"\n🏆 TEST RESULTS:\nAUC: {metrics['AUC']:.4f}\nAccuracy: {metrics['Accuracy']:.4f}")
+    
+    # SOLUTION 2: Regime Detector / Inverter
+    # 1. Evaluate on Validation set to detect flip
+    val_probs = model.predict_proba(X_val)
+    val_auc = roc_auc_score(y_val, val_probs)
+    print(f"Validation AUC: {val_auc:.4f}")
+    
+    invert_logic = False
+    if val_auc < 0.48:
+        print("⚠️ REGIME FLIP DETECTED (Val AUC < 0.48)")
+        print("🔄 Inverting predictions for the Test set...")
+        invert_logic = True
+    
+    # 2. Predict on Test
+    test_probs = model.predict_proba(X_test)
+    if invert_logic:
+        test_probs = 1 - test_probs
+        
+    test_auc = roc_auc_score(y_test, test_probs)
+    test_acc = accuracy_score(y_test, (test_probs > 0.5).astype(int))
+    
+    print("\n🏆 TEST RESULTS (with Inverter Logic):")
+    print(f"AUC: {test_auc:.4f}")
+    print(f"Accuracy: {test_acc:.4f}")
     
     # Analysis
     results = model.model.evals_result()
