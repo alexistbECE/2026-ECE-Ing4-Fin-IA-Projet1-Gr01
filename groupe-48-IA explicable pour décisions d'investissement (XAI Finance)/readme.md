@@ -35,7 +35,7 @@ Projet d'Intelligence Artificielle appliquée à la finance, visant à fournir d
    Le projet nécessite des clés API pour fonctionner (Base de données & IA).
    
    - Un fichier modèle `src/web/.env.example` est fourni.
-   - **Pour les correcteurs** : Créez un fichier `.env.local` dans `src/web/` et collez-y les clés fournies dans le commentaire de rendu (ou utilisez celles par défaut si fournies).
+   - **Pour les correcteurs** : Créez un fichier `.env.local` dans `src/web/` et collez-y les clés fournies dans le commentaire de rendu.
    
    ```bash
    # Exemple de commande
